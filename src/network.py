@@ -8,7 +8,7 @@ using backpropagation.  Note that I have focused on making the code
 simple, easily readable, and easily modifiable.  It is not optimized,
 and omits many desirable features.
 """
-
+import pickle
 #### Libraries
 # Standard library
 import random
@@ -16,6 +16,7 @@ import time
 
 # Third-party libraries
 import numpy as np
+import numpy.ctypeslib
 
 
 class Network(object):
@@ -134,6 +135,17 @@ class Network(object):
         """Return the vector of partial derivatives \partial C_x /
         \partial a for the output activations."""
         return (output_activations-y)
+    def saveNeuralNetwork(self):
+        with open('C://Users//User//neuralNetsIntro//data//weights.npy', "wb") as fp:   #Pickling
+            pickle.dump(self.weights, fp)
+        with open('C://Users//User//neuralNetsIntro//data//biases.npy', "wb") as fp:   #Pickling
+            pickle.dump(self.biases, fp)
+    def loadNeuralNetwork(self):
+        with open('C://Users//User//neuralNetsIntro//data//biases.npy', "rb") as fp:   #Pickling
+            self.biases = pickle.load(fp)
+        with open('C://Users//User//neuralNetsIntro//data//weights.npy', "rb") as fp:   #Pickling
+            self.weights = pickle.load(fp)
+
 
 #### Miscellaneous functions
 def sigmoid(z):
