@@ -87,3 +87,7 @@ def vectorized_result(j):
     e = np.zeros((10, 1))
     e[j] = 1.0
     return e
+def printData(test_data):
+    for i in range(0, 785, 28):
+        for j in range(0, 28):
+            print(test_data[0][i+j])
