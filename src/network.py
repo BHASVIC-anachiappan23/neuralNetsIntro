@@ -45,7 +45,7 @@ class Network(object):
         return a
 
     def SGD(self, training_data, epochs, mini_batch_size, eta,
-            test_data=None):yo
+            test_data=None):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The ``training_data`` is a list of tuples
         ``(x, y)`` representing the training inputs and the desired
@@ -145,6 +145,7 @@ class Network(object):
             self.biases = pickle.load(fp)
         with open('C://Users//User//neuralNetsIntro//data//weights.npy', "rb") as fp:   #Pickling
             self.weights = pickle.load(fp)
+
 
 
 #### Miscellaneous functions
