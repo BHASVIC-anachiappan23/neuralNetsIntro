@@ -34,7 +34,7 @@ class Network(object):
         ever used in computing the outputs from later layers."""
         self.num_layers = len(sizes)
         self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]#generates len(sizes) - 1 lists of y random numbers(1D array array because of 1 at end)
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
 
@@ -87,7 +87,7 @@ class Network(object):
         self.biases = [b-(eta/len(mini_batch))*nb
                        for b, nb in zip(self.biases, nabla_b)]
 
-    def backprop(self, x, y):
+    def backprop(self, mini_batch):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the
         gradient for the cost function C_x.  ``nabla_b`` and
         ``nabla_w`` are layer-by-layer lists of numpy arrays, similar
@@ -95,15 +95,16 @@ class Network(object):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = x
-        activations = [x] # list to store all the activations, layer by layer
+        activation = [mini_batch[c][0] for c in range(0, len(mini_batch))]
+        activations = [list(activation)] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
+            z = np.dot(w, activation)+[b for i in range(0, len(mini_batch))].transpose()
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
+        y = [mini_batch[b][1] for b in range(0, len(mini_batch))]
         delta = self.cost_derivative(activations[-1], y) * \
             sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
@@ -151,8 +152,15 @@ class Network(object):
 #### Miscellaneous functions
 def sigmoid(z):
     """The sigmoid function."""
-    return 1.0/(1.0+np.exp(-z))
+    newList = []
+    for i in range(0, len(z)):
+        newList.append(1.0/(1.0+np.exp(-z[i])))
+    return newList
 
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
     return sigmoid(z)*(1-sigmoid(z))
+def getTrainingData():
+    from src import mnist_loader
+    training_data, validation_data, test_data = mnist_loader.load_data_wrapper()
+    return training_data
