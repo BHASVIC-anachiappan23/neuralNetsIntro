@@ -95,18 +95,18 @@ class Network(object):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = [mini_batch[c][0] for c in range(0, len(mini_batch))]
-        activations = [list(activation)] # list to store all the activations, layer by layer
+        activation = np.array([mini_batch[c][0] for c in range(0, len(mini_batch))]).transpose()[0]#will give you a 30 columns, 784 rows
+        activations = [np.array(activation)] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+[b for i in range(0, len(mini_batch))].transpose()
+            bNew = np.array([b for i in range(0, len(mini_batch))]).transpose()[0]
+            z = np.dot(w, activation)+bNew
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        y = [mini_batch[b][1] for b in range(0, len(mini_batch))]
-        delta = self.cost_derivative(activations[-1], y) * \
-            sigmoid_prime(zs[-1])
+        y = np.array([mini_batch[b][1] for b in range(0, len(mini_batch))]).transpose()
+        delta = self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
         # Note that the variable l in the loop below is used a little
@@ -135,7 +135,8 @@ class Network(object):
     def cost_derivative(self, output_activations, y):
         """Return the vector of partial derivatives \partial C_x /
         \partial a for the output activations."""
-        return (output_activations-y)
+        val = output_activations-y
+        return val
     def saveNeuralNetwork(self):
         with open('C://Users//User//neuralNetsIntro//data//weights.npy', "wb") as fp:   #Pickling
             pickle.dump(self.weights, fp)
@@ -152,10 +153,7 @@ class Network(object):
 #### Miscellaneous functions
 def sigmoid(z):
     """The sigmoid function."""
-    newList = []
-    for i in range(0, len(z)):
-        newList.append(1.0/(1.0+np.exp(-z[i])))
-    return newList
+    return 1.0/(1.0+np.exp(-z))#check if orig
 
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
