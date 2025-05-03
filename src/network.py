@@ -105,8 +105,8 @@ class Network(object):
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        y = np.array([mini_batch[b][1] for b in range(0, len(mini_batch))]).transpose()
-        delta = self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        y = np.array([mini_batch[b][1] for b in range(0, len(mini_batch))]).transpose()[0]
+        delta = (self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1]))
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
         # Note that the variable l in the loop below is used a little
@@ -121,7 +121,14 @@ class Network(object):
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        return (nabla_b, nabla_w)
+        oneArr = np.array([(1/len(mini_batch)) for b in range(0, len(mini_batch))]).transpose()
+        avg_nabla_b = []
+        avg_nabla_w = []
+        for i in range(0, len(nabla_b)):
+            avg_nabla_b.append(np.dot(nabla_b[i], oneArr))#averages up the values in each row
+            avg_nabla_w.append(np.dot(nabla_w[i], oneArr))
+
+        return (avg_nabla_b, avg_nabla_w)
 
     def evaluate(self, test_data):
         """Return the number of test inputs for which the neural
