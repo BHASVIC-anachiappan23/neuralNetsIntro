@@ -78,10 +78,9 @@ class Network(object):
         is the learning rate."""
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-        for x, y in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+        delta_nabla_b, delta_nabla_w = self.backprop(mini_batch)
+        nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+        nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
         self.weights = [w-(eta/len(mini_batch))*nw
                         for w, nw in zip(self.weights, nabla_w)]
         self.biases = [b-(eta/len(mini_batch))*nb
@@ -95,7 +94,8 @@ class Network(object):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = np.array([mini_batch[c][0] for c in range(0, len(mini_batch))]).transpose()[0]#will give you a 30 columns, 784 rows
+        activation = np.array([x for (x, y) in mini_batch]).transpose()[0]#will give you a 30 columns, 784 rows
+        #0 is there because when you transpose another array is created by numpy
         activations = [np.array(activation)] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
@@ -106,9 +106,10 @@ class Network(object):
             activations.append(activation)
         # backward pass
         y = np.array([mini_batch[b][1] for b in range(0, len(mini_batch))]).transpose()[0]
-        delta = (self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1]))
-        nabla_b[-1] = delta
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        delta = (self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1]))#hadamard prod
+        nabla_b[-1] = delta#we want to return the sum of nabla_b's for each layer -> this is just for last layer
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())#activations(l)_eachBatch x batch size dot batch size x activations(l-1)_eachBatch = Sum n = 1 to batch size activations(l)_nRun dot activations(l-1)_nRun = sum of weights
+
         # Note that the variable l in the loop below is used a little
         # differently to the notation in Chapter 2 of the book.  Here,
         # l = 1 means the last layer of neurons, l = 2 is the
@@ -121,15 +122,46 @@ class Network(object):
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        oneArr = np.array([(1/len(mini_batch)) for b in range(0, len(mini_batch))]).transpose()
-        avg_nabla_b = []
-        avg_nabla_w = []
-        for i in range(0, len(nabla_b)):
-            avg_nabla_b.append(np.dot(nabla_b[i], oneArr))#averages up the values in each row
-            avg_nabla_w.append(np.dot(nabla_w[i], oneArr))
+        oneArr = np.array([1 for b in range(0, len(mini_batch))]).transpose()
+        sum_nabla_b = []
+        for i in range(0, len(nabla_b)):#for nabla_w we are automatically summing it up with the dot as shown next to nabla_w but it's not the case for nabla_b(each run nabla_b fills matrix) so we have a sum up at the end
+            sum_nabla_b.append(np.array(np.dot(nabla_b[i], oneArr)).reshape(len(nabla_b[i]), 1))#summing up by dimension
+            #(numBiasRows, 1) because of for dnb in zip(nabla_b) -> because of the extra 1 we can filter through each bias or else we would filtering through the whole list
 
-        return (avg_nabla_b, avg_nabla_w)
+        return (sum_nabla_b, nabla_w)
+    def feedforward2(self, a):
+        zs = []
+        activations = [a]
 
+        activation = a
+        for b, w in zip(self.biases, self.weights):
+            z = np.dot(w, activation) + b
+            zs.append(z)
+            activation = sigmoid(z)
+            activations.append(activation)
+
+        return (zs, activations)
+
+    def different(self, x, y):
+        nabla_b = [0 for i in self.biases]
+        nabla_w = [0 for i in self.weights]
+
+        # feedforward
+        zs, activations = self.feedforward2(x)
+
+        # backward pass
+        delta = self.cost_derivative(activations[-1], y) * sigmoid_prime(zs[-1])
+        nabla_b[-1] = delta.sum(1).reshape([len(delta), 1]) # reshape to (n x 1) matrix
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+
+        for l in range(2, self.num_layers):
+            z = zs[-l]
+            sp = sigmoid_prime(z)
+            delta = np.dot(self.weights[-l + 1].transpose(), delta) * sp
+            nabla_b[-l] = delta.sum(1).reshape([len(delta), 1]) # reshape to (n x 1) matrix
+            nabla_w[-l] = np.dot(delta, activations[-l - 1].transpose())
+
+        return (nabla_b, nabla_w)
     def evaluate(self, test_data):
         """Return the number of test inputs for which the neural
         network outputs the correct result. Note that the neural
