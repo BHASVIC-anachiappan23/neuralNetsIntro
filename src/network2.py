@@ -156,15 +156,20 @@ class Network(object):
         n = len(training_data)
         evaluation_cost, evaluation_accuracy = [], []
         training_cost, training_accuracy = [], []
-        for j in range(epochs):
+        numEpochsPassed = 0
+        etaChanges = 0
+        while numEpochsPassed < epochs and etaChanges < 10:
             random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k+mini_batch_size]
                 for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
+                if noImprovementInAccuracyIn10(evaluation_accuracy):
+                    eta = eta/2
+                    etaChanges += 1
                 self.update_mini_batch(
                     mini_batch, eta, lmbda, len(training_data), regularisation)
-            print("Epoch %s training complete" % j)
+            print("Epoch %s training complete" % numEpochsPassed)
             if monitor_training_cost:
                 cost = self.total_cost(training_data, lmbda)
                 training_cost.append(cost)
@@ -184,6 +189,7 @@ class Network(object):
                 print("Accuracy on evaluation data: {} / {}".format(
                     self.accuracy(evaluation_data), n_data))
             print
+            numEpochsPassed += 1
         return evaluation_cost, evaluation_accuracy, \
             training_cost, training_accuracy
 
@@ -341,3 +347,8 @@ def sigmoid(z):
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
     return sigmoid(z)*(1-sigmoid(z))
+def noImprovementInAccuracyIn10(evaluationAccuracy):
+    if len(evaluationAccuracy) > 10:
+        if evaluationAccuracy[-1] < evaluationAccuracy[-10] or (evaluationAccuracy[-1] - evaluationAccuracy[-10])/(evaluationAccuracy[-10]) < 0.0005:
+            return True
+    return False
