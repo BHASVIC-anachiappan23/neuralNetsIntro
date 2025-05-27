@@ -158,15 +158,18 @@ class Network(object):
         training_cost, training_accuracy = [], []
         numEpochsPassed = 0
         etaChanges = 0
+        evalAcc = []
         while numEpochsPassed < epochs and etaChanges < 10:
             random.shuffle(training_data)
             mini_batches = [
                 training_data[k:k+mini_batch_size]
                 for k in range(0, n, mini_batch_size)]
+            evalAcc.append(self.accuracy(evaluation_data))
+            if noImprovementInAccuracyIn10(evalAcc):
+                eta = eta/2
+                etaChanges += 1
+                print(etaChanges)
             for mini_batch in mini_batches:
-                if noImprovementInAccuracyIn10(evaluation_accuracy):
-                    eta = eta/2
-                    etaChanges += 1
                 self.update_mini_batch(
                     mini_batch, eta, lmbda, len(training_data), regularisation)
             print("Epoch %s training complete" % numEpochsPassed)
@@ -203,7 +206,7 @@ class Network(object):
         """
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-        for x, y in mini_batch:
+        for (x, y) in mini_batch:
             delta_nabla_b, delta_nabla_w = self.backprop(x, y)
             nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
@@ -256,7 +259,6 @@ class Network(object):
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
         return (nabla_b, nabla_w)
-
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
         network outputs the correct result. The neural network's
