@@ -126,7 +126,7 @@ class Network(object):
             a = sigmoid(np.dot(w, a)+b)
         return a
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta, regularisation,
+    def SGD(self, training_data, epochs, mini_batch_size, eta, regularisation, varLearningRate,
             lmbda = 0.0,
             evaluation_data=None,
             monitor_evaluation_cost=False,
@@ -165,10 +165,11 @@ class Network(object):
                 training_data[k:k+mini_batch_size]
                 for k in range(0, n, mini_batch_size)]
             evalAcc.append(self.accuracy(evaluation_data))
-            if noImprovementInAccuracyIn10(evalAcc):
+            if noImprovementInAccuracyIn10(evalAcc) and varLearningRate:
                 eta = eta/2
                 etaChanges += 1
                 print(etaChanges)
+                print(self.accuracy(evaluation_data))
             for mini_batch in mini_batches:
                 self.update_mini_batch(
                     mini_batch, eta, lmbda, len(training_data), regularisation)
@@ -191,7 +192,6 @@ class Network(object):
                 evaluation_accuracy.append(accuracy)
                 print("Accuracy on evaluation data: {} / {}".format(
                     self.accuracy(evaluation_data), n_data))
-            print
             numEpochsPassed += 1
         return evaluation_cost, evaluation_accuracy, \
             training_cost, training_accuracy
@@ -206,10 +206,10 @@ class Network(object):
         """
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-        for (x, y) in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+
+        delta_nabla_b, delta_nabla_w = self.backprop(mini_batch)
+        nabla_b = [nb+dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
+        nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
         if(regularisation == "L2"):
             self.weights = [(1-eta*(lmbda/n))*w-(eta/len(mini_batch))*nw
                             for w, nw in zip(self.weights, nabla_w)]
@@ -226,26 +226,26 @@ class Network(object):
             self.biases = [b-(eta/len(mini_batch))*nb
                            for b, nb in zip(self.biases, nabla_b)]
 
-    def backprop(self, x, y):
-        """Return a tuple ``(nabla_b, nabla_w)`` representing the
-        gradient for the cost function C_x.  ``nabla_b`` and
-        ``nabla_w`` are layer-by-layer lists of numpy arrays, similar
-        to ``self.biases`` and ``self.weights``."""
+    def backprop(self, mini_batch):
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         # feedforward
-        activation = x
-        activations = [x] # list to store all the activations, layer by layer
+        activation = np.array([x for (x, y) in mini_batch]).transpose()[0]#will give you a 30 columns, 784 rows
+        #0 is there because when you transpose another array is created by numpy
+        activations = [np.array(activation)] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation)+b
+            bNew = np.array([b for i in range(0, len(mini_batch))]).transpose()[0]
+            z = np.dot(w, activation)+bNew
             zs.append(z)
             activation = sigmoid(z)
             activations.append(activation)
         # backward pass
-        delta = (self.cost).delta(zs[-1], activations[-1], y)
-        nabla_b[-1] = delta
-        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        y = np.array([mini_batch[b][1] for b in range(0, len(mini_batch))]).transpose()[0]
+        delta = (self.cost.delta(zs[-1], activations[-1], y) * sigmoid_prime(zs[-1]))#hadamard prod
+        nabla_b[-1] = delta#we want to return the sum of nabla_b's for each layer -> this is just for last layer
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())#activations(l)_eachBatch x batch size dot batch size x activations(l-1)_eachBatch = Sum n = 1 to batch size activations(l)_nRun dot activations(l-1)_nRun = sum of weights
+
         # Note that the variable l in the loop below is used a little
         # differently to the notation in Chapter 2 of the book.  Here,
         # l = 1 means the last layer of neurons, l = 2 is the
@@ -258,7 +258,13 @@ class Network(object):
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
-        return (nabla_b, nabla_w)
+        oneArr = np.array([1 for b in range(0, len(mini_batch))]).transpose()
+        sum_nabla_b = []
+        for i in range(0, len(nabla_b)):#for nabla_w we are automatically summing it up with the dot as shown next to nabla_w but it's not the case for nabla_b(each run nabla_b fills matrix) so we have a sum up at the end
+            sum_nabla_b.append(np.array(np.dot(nabla_b[i], oneArr)).reshape(len(nabla_b[i]), 1))#summing up by dimension
+            #(numBiasRows, 1) because of for dnb in zip(nabla_b) -> because of the extra 1 we can filter through each bias or else we would filtering through the whole list
+
+        return (sum_nabla_b, nabla_w)
     def accuracy(self, data, convert=False):
         """Return the number of inputs in ``data`` for which the neural
         network outputs the correct result. The neural network's
@@ -350,7 +356,4 @@ def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
     return sigmoid(z)*(1-sigmoid(z))
 def noImprovementInAccuracyIn10(evaluationAccuracy):
-    if len(evaluationAccuracy) > 10:
-        if evaluationAccuracy[-1] < evaluationAccuracy[-10] or (evaluationAccuracy[-1] - evaluationAccuracy[-10])/(evaluationAccuracy[-10]) < 0.0005:
-            return True
-    return False
+    return len(evaluationAccuracy) - 1 - (max(range(len(evaluationAccuracy)), key=evaluationAccuracy.__getitem__))  > 10
